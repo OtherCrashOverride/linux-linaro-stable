@@ -133,6 +133,14 @@ ENTRY(cpu_resume_mmu)
 	ldr	x3, =cpu_resume_after_mmu
 	msr	sctlr_el1, x0		// restore sctlr_el1
 	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
 	br	x3			// global jump to virtual address
 ENDPROC(cpu_resume_mmu)
 	.popsection
@@ -158,7 +166,6 @@ ENTRY(cpu_resume)
 	ldp	w5, w6, [x8, #(MPIDR_HASH_SHIFTS + 8)]
 	compute_mpidr_hash x7, x3, x4, x5, x6, x1, x2
         /* x7 contains hash index, let's use it to grab context pointer */
-	mov	x7, xzr
 	ldr_l	x0, sleep_save_sp + SLEEP_SAVE_SP_PHYS
 	ldr	x0, [x0, x7, lsl #3]
 	/* load sp from context */
